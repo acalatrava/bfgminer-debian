@@ -207,6 +207,7 @@ bool scanhash_arm_crypto(struct thr_info *const thr, struct work *const work,
 
     uint8_t data_aligned[80] __attribute__((aligned(16)));
     uint8_t midstate_aligned[32] __attribute__((aligned(16)));
+    uint8_t hash_buffer[32] __attribute__((aligned(16)));
 
     memcpy(data_aligned, pdata, 80);
     memcpy(midstate_aligned, pmidstate, 32);
@@ -218,19 +219,43 @@ bool scanhash_arm_crypto(struct thr_info *const thr, struct work *const work,
         LOCAL_swap32le(unsigned char, data_le, 80 / 4)
 
             uint32_t *nonce_le = (uint32_t *)(data_le + 76);
+    uint32_t *hash32_buf = (uint32_t *)hash_buffer;
+
+    /* Process in batches to reduce overhead and maintain performance at low difficulty */
+    const uint32_t batch_size = 256;
 
     while (true)
     {
-        *nonce_le = nonce;
+        uint32_t batch_end = nonce + batch_size;
+        if (batch_end > max_nonce)
+            batch_end = max_nonce;
 
-        sha256_double_arm_crypto(phash, data_le, midstate_le);
-
-        if (unlikely(hash32[7] == 0))
+        /* Process batch of nonces with minimal overhead */
+        for (uint32_t n = nonce; n < batch_end; n++)
         {
-            *nonce_p = htole32(nonce);
-            *last_nonce = nonce;
-            return true;
+            *nonce_le = n;
+
+            sha256_double_arm_crypto(hash_buffer, data_le, midstate_le);
+
+            if (unlikely(hash32_buf[7] == 0))
+            {
+                /* Found a potential solution, verify and return */
+                memcpy(phash, hash_buffer, 32);
+                *nonce_p = htole32(n);
+                *last_nonce = n;
+                return true;
+            }
+
+            /* Check work restart periodically (every 64 nonces) within batch */
+            if (unlikely((n & 0x3f) == 0 && thr->work_restart))
+            {
+                *nonce_p = htole32(n);
+                *last_nonce = n;
+                return false;
+            }
         }
+
+        nonce = batch_end;
 
         if ((nonce >= max_nonce) || thr->work_restart)
         {
@@ -238,8 +263,6 @@ bool scanhash_arm_crypto(struct thr_info *const thr, struct work *const work,
             *last_nonce = nonce;
             return false;
         }
-
-        nonce++;
     }
 }
 
