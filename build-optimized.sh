@@ -20,7 +20,7 @@ ARCH=$(uname -m)
 echo -e "${YELLOW}Detected architecture: ${ARCH}${NC}"
 
 # Set optimization flags based on architecture
-OPTFLAGS="-O3"
+OPTFLAGS="-O3 -fcommon"
 
 case "$ARCH" in
     x86_64|amd64)
