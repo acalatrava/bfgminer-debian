@@ -172,7 +172,8 @@ bfgminer_SOURCES	+= \
 		  sha256_generic.c sha256_via.c	\
 		  sha256_cryptopp.c sha256_sse2_amd64.c		\
 		  sha256_sse4_amd64.c 	\
-		  sha256_altivec_4way.c
+		  sha256_altivec_4way.c \
+		  sha256_shani.c sha256_arm_crypto.c
 
 if HAVE_SSE2
 bfgminer_LDADD  += libsse2cpuminer.a

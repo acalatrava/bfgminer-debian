@@ -154,16 +154,25 @@ case $target in
   amd64-* | x86_64-*)
     have_x86_32=false
     have_x86_64=true
+    have_arm64=false
     bitness="64"
     ;;
   i386-* | i486-* | i586-* | i686-* | x86-*)
     have_x86_32=true
     have_x86_64=false
+    have_arm64=false
     bitness="32"
+    ;;
+  aarch64-* | arm64-*)
+    have_x86_32=false
+    have_x86_64=false
+    have_arm64=true
+    bitness="64"
     ;;
   *)
     have_x86_32=false
     have_x86_64=false
+    have_arm64=false
     ;;
 esac
 
@@ -1289,6 +1298,82 @@ if test "x$USE_CPUMINING$have_x86_32" = "xyestrue"; then
 fi
 AM_CONDITIONAL([HAVE_SSE2], [test "x$have_sse2" = "xyes"])
 
+dnl Check for Intel SHA Extensions (SHA-NI)
+have_shani=no
+if test "x$USE_CPUMINING" = "xyes"; then
+	if test "x$have_x86_32" = "xtrue" -o "x$have_x86_64" = "xtrue"; then
+		AC_MSG_CHECKING([if Intel SHA Extensions are available])
+		save_CFLAGS="$CFLAGS"
+		for flags in '-msha -msse4.1' '-march=native'; do
+			CFLAGS="$CFLAGS $flags"
+			AC_TRY_LINK([
+				#include <immintrin.h>
+			],[
+				__m128i a = _mm_set1_epi32(0);
+				__m128i b = _mm_set1_epi32(0);
+				__m128i c = _mm_set1_epi32(0);
+				a = _mm_sha256rnds2_epu32(a, b, c);
+				a = _mm_sha256msg1_epu32(a, b);
+				a = _mm_sha256msg2_epu32(a, b);
+			],[
+				if test "x$flags" = "x"; then
+					AC_MSG_RESULT([yes])
+				else
+					AC_MSG_RESULT([with $flags])
+				fi
+				SHANI_CFLAGS="$flags"
+				have_shani=yes
+				break
+			],[
+				true
+			])
+			CFLAGS="${save_CFLAGS}"
+		done
+		if test "x$have_shani" != "xyes"; then
+			AC_MSG_RESULT([no])
+		fi
+	fi
+fi
+AM_CONDITIONAL([HAVE_SHANI], [test "x$have_shani" = "xyes"])
+
+dnl Check for ARM Crypto Extensions
+have_arm_crypto=no
+if test "x$USE_CPUMINING" = "xyes"; then
+	if test "x$have_arm64" = "xtrue"; then
+		AC_MSG_CHECKING([if ARM Crypto Extensions are available])
+		save_CFLAGS="$CFLAGS"
+		for flags in '-march=armv8-a+crypto' '-march=native'; do
+			CFLAGS="$CFLAGS $flags"
+			AC_TRY_LINK([
+				#include <arm_neon.h>
+			],[
+				uint32x4_t a = vdupq_n_u32(0);
+				uint32x4_t b = vdupq_n_u32(0);
+				uint32x4_t c = vdupq_n_u32(0);
+				a = vsha256hq_u32(a, b, c);
+				a = vsha256su0q_u32(a, b);
+				a = vsha256su1q_u32(a, b, c);
+			],[
+				if test "x$flags" = "x"; then
+					AC_MSG_RESULT([yes])
+				else
+					AC_MSG_RESULT([with $flags])
+				fi
+				ARM_CRYPTO_CFLAGS="$flags"
+				have_arm_crypto=yes
+				break
+			],[
+				true
+			])
+			CFLAGS="${save_CFLAGS}"
+		done
+		if test "x$have_arm_crypto" != "xyes"; then
+			AC_MSG_RESULT([no])
+		fi
+	fi
+fi
+AM_CONDITIONAL([HAVE_ARM_CRYPTO], [test "x$have_arm_crypto" = "xyes"])
+
 if test "x$need_lowl_vcom" = "xyes"; then
 	AC_ARG_WITH([libudev], [AC_HELP_STRING([--without-libudev], [Autodetect FPGAs using libudev (default enabled)])],
 		[libudev=$withval],
@@ -1580,6 +1665,8 @@ AC_SUBST(MATH_LIBS)
 AC_SUBST(RT_LIBS)
 AC_SUBST(UDEV_LIBS)
 AC_SUBST(SSE2_CFLAGS)
+AC_SUBST(SHANI_CFLAGS)
+AC_SUBST(ARM_CRYPTO_CFLAGS)
 AC_SUBST(YASM_FMT)
 
 AC_CONFIG_FILES([

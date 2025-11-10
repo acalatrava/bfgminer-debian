@@ -48,33 +48,44 @@
 #define WANT_X8664_SSE4 1
 #endif
 
-#endif  /* USE_SHA256D */
+#if defined(__x86_64__) || defined(__i386__)
+#define WANT_X8664_SHANI 1
+#endif
+
+#if defined(__aarch64__) || defined(__arm64__)
+#define WANT_ARM64_CRYPTO 1
+#endif
+
+#endif /* USE_SHA256D */
 
 #ifdef USE_SCRYPT
 #define WANT_SCRYPT
 #endif
 
-enum sha256_algos {
+enum sha256_algos
+{
 #ifdef USE_SHA256D
-	ALGO_C,			/* plain C */
-	ALGO_4WAY,		/* parallel SSE2 */
-	ALGO_VIA,		/* VIA padlock */
-	ALGO_CRYPTOPP,		/* Crypto++ (C) */
-	ALGO_CRYPTOPP_ASM32,	/* Crypto++ 32-bit assembly */
-	ALGO_SSE2_32,		/* SSE2 for x86_32 */
-	ALGO_SSE2_64,		/* SSE2 for x86_64 */
-	ALGO_SSE4_64,		/* SSE4 for x86_64 */
-	ALGO_ALTIVEC_4WAY,	/* parallel Altivec */
+	ALGO_C,				 /* plain C */
+	ALGO_4WAY,			 /* parallel SSE2 */
+	ALGO_VIA,			 /* VIA padlock */
+	ALGO_CRYPTOPP,		 /* Crypto++ (C) */
+	ALGO_CRYPTOPP_ASM32, /* Crypto++ 32-bit assembly */
+	ALGO_SSE2_32,		 /* SSE2 for x86_32 */
+	ALGO_SSE2_64,		 /* SSE2 for x86_64 */
+	ALGO_SSE4_64,		 /* SSE4 for x86_64 */
+	ALGO_ALTIVEC_4WAY,	 /* parallel Altivec */
+	ALGO_SHANI,			 /* Intel SHA Extensions (SHA-NI) */
+	ALGO_ARM_CRYPTO,	 /* ARM Crypto Extensions */
 #endif
 #ifdef USE_SCRYPT
-	ALGO_SCRYPT,		/* scrypt */
+	ALGO_SCRYPT, /* scrypt */
 #endif
-	
+
 #ifdef USE_SHA256D
-	ALGO_FASTAUTO,		/* fast autodetect */
-	ALGO_AUTO,		/* autodetect */
+	ALGO_FASTAUTO, /* fast autodetect */
+	ALGO_AUTO,	   /* autodetect */
 #endif
-	
+
 	CUSTOM_CPU_MINING_ALGOS_COUNT,
 };
 
