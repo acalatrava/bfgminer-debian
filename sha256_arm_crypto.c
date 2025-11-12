@@ -35,6 +35,15 @@
 #define TARGET_ARM_CRYPTO
 #endif
 
+static inline void store_state_be(uint8_t out[32], const uint32_t state[8])
+{
+    uint8x16_t lo = vrev32q_u8(vreinterpretq_u8_u32(vld1q_u32(&state[0])));
+    uint8x16_t hi = vrev32q_u8(vreinterpretq_u8_u32(vld1q_u32(&state[4])));
+
+    vst1q_u8(out, lo);
+    vst1q_u8(out + 16, hi);
+}
+
 static const uint32_t k256[64] = {
     0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5,
     0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
@@ -65,6 +74,7 @@ void sha256_arm_crypto(uint32_t *digest, const void *data, uint32_t num_blks)
     {
         uint32x4_t abcd_save = state0;
         uint32x4_t efgh_save = state1;
+        const uint32_t *kptr = k256;
         uint32x4_t msg0 = vld1q_u32((const uint32_t *)(dataptr + 0));
         uint32x4_t msg1 = vld1q_u32((const uint32_t *)(dataptr + 16));
         uint32x4_t msg2 = vld1q_u32((const uint32_t *)(dataptr + 32));
@@ -78,104 +88,120 @@ void sha256_arm_crypto(uint32_t *digest, const void *data, uint32_t num_blks)
         msg3 = vreinterpretq_u32_u8(vrev32q_u8(vreinterpretq_u8_u32(msg3)));
 #endif
 
-        tmp0 = vaddq_u32(msg0, vld1q_u32(&k256[0x00]));
+        tmp0 = vaddq_u32(msg0, vld1q_u32(kptr));
+        kptr += 4;
 
         msg0 = vsha256su0q_u32(msg0, msg1);
         tmp2 = state0;
-        tmp1 = vaddq_u32(msg1, vld1q_u32(&k256[0x04]));
+        tmp1 = vaddq_u32(msg1, vld1q_u32(kptr));
+        kptr += 4;
         state0 = vsha256hq_u32(state0, state1, tmp0);
         state1 = vsha256h2q_u32(state1, tmp2, tmp0);
         msg0 = vsha256su1q_u32(msg0, msg2, msg3);
 
         msg1 = vsha256su0q_u32(msg1, msg2);
         tmp2 = state0;
-        tmp0 = vaddq_u32(msg2, vld1q_u32(&k256[0x08]));
+        tmp0 = vaddq_u32(msg2, vld1q_u32(kptr));
+        kptr += 4;
         state0 = vsha256hq_u32(state0, state1, tmp1);
         state1 = vsha256h2q_u32(state1, tmp2, tmp1);
         msg1 = vsha256su1q_u32(msg1, msg3, msg0);
 
         msg2 = vsha256su0q_u32(msg2, msg3);
         tmp2 = state0;
-        tmp1 = vaddq_u32(msg3, vld1q_u32(&k256[0x0c]));
+        tmp1 = vaddq_u32(msg3, vld1q_u32(kptr));
+        kptr += 4;
         state0 = vsha256hq_u32(state0, state1, tmp0);
         state1 = vsha256h2q_u32(state1, tmp2, tmp0);
         msg2 = vsha256su1q_u32(msg2, msg0, msg1);
 
         msg3 = vsha256su0q_u32(msg3, msg0);
         tmp2 = state0;
-        tmp0 = vaddq_u32(msg0, vld1q_u32(&k256[0x10]));
+        tmp0 = vaddq_u32(msg0, vld1q_u32(kptr));
+        kptr += 4;
         state0 = vsha256hq_u32(state0, state1, tmp1);
         state1 = vsha256h2q_u32(state1, tmp2, tmp1);
         msg3 = vsha256su1q_u32(msg3, msg1, msg2);
 
         msg0 = vsha256su0q_u32(msg0, msg1);
         tmp2 = state0;
-        tmp1 = vaddq_u32(msg1, vld1q_u32(&k256[0x14]));
+        tmp1 = vaddq_u32(msg1, vld1q_u32(kptr));
+        kptr += 4;
         state0 = vsha256hq_u32(state0, state1, tmp0);
         state1 = vsha256h2q_u32(state1, tmp2, tmp0);
         msg0 = vsha256su1q_u32(msg0, msg2, msg3);
 
         msg1 = vsha256su0q_u32(msg1, msg2);
         tmp2 = state0;
-        tmp0 = vaddq_u32(msg2, vld1q_u32(&k256[0x18]));
+        tmp0 = vaddq_u32(msg2, vld1q_u32(kptr));
+        kptr += 4;
         state0 = vsha256hq_u32(state0, state1, tmp1);
         state1 = vsha256h2q_u32(state1, tmp2, tmp1);
         msg1 = vsha256su1q_u32(msg1, msg3, msg0);
 
         msg2 = vsha256su0q_u32(msg2, msg3);
         tmp2 = state0;
-        tmp1 = vaddq_u32(msg3, vld1q_u32(&k256[0x1c]));
+        tmp1 = vaddq_u32(msg3, vld1q_u32(kptr));
+        kptr += 4;
         state0 = vsha256hq_u32(state0, state1, tmp0);
         state1 = vsha256h2q_u32(state1, tmp2, tmp0);
         msg2 = vsha256su1q_u32(msg2, msg0, msg1);
 
         msg3 = vsha256su0q_u32(msg3, msg0);
         tmp2 = state0;
-        tmp0 = vaddq_u32(msg0, vld1q_u32(&k256[0x20]));
+        tmp0 = vaddq_u32(msg0, vld1q_u32(kptr));
+        kptr += 4;
         state0 = vsha256hq_u32(state0, state1, tmp1);
         state1 = vsha256h2q_u32(state1, tmp2, tmp1);
         msg3 = vsha256su1q_u32(msg3, msg1, msg2);
 
         msg0 = vsha256su0q_u32(msg0, msg1);
         tmp2 = state0;
-        tmp1 = vaddq_u32(msg1, vld1q_u32(&k256[0x24]));
+        tmp1 = vaddq_u32(msg1, vld1q_u32(kptr));
+        kptr += 4;
         state0 = vsha256hq_u32(state0, state1, tmp0);
         state1 = vsha256h2q_u32(state1, tmp2, tmp0);
         msg0 = vsha256su1q_u32(msg0, msg2, msg3);
 
         msg1 = vsha256su0q_u32(msg1, msg2);
         tmp2 = state0;
-        tmp0 = vaddq_u32(msg2, vld1q_u32(&k256[0x28]));
+        tmp0 = vaddq_u32(msg2, vld1q_u32(kptr));
+        kptr += 4;
         state0 = vsha256hq_u32(state0, state1, tmp1);
         state1 = vsha256h2q_u32(state1, tmp2, tmp1);
         msg1 = vsha256su1q_u32(msg1, msg3, msg0);
 
         msg2 = vsha256su0q_u32(msg2, msg3);
         tmp2 = state0;
-        tmp1 = vaddq_u32(msg3, vld1q_u32(&k256[0x2c]));
+        tmp1 = vaddq_u32(msg3, vld1q_u32(kptr));
+        kptr += 4;
         state0 = vsha256hq_u32(state0, state1, tmp0);
         state1 = vsha256h2q_u32(state1, tmp2, tmp0);
         msg2 = vsha256su1q_u32(msg2, msg0, msg1);
 
         msg3 = vsha256su0q_u32(msg3, msg0);
         tmp2 = state0;
-        tmp0 = vaddq_u32(msg0, vld1q_u32(&k256[0x30]));
+        tmp0 = vaddq_u32(msg0, vld1q_u32(kptr));
+        kptr += 4;
         state0 = vsha256hq_u32(state0, state1, tmp1);
         state1 = vsha256h2q_u32(state1, tmp2, tmp1);
         msg3 = vsha256su1q_u32(msg3, msg1, msg2);
 
         tmp2 = state0;
-        tmp1 = vaddq_u32(msg1, vld1q_u32(&k256[0x34]));
+        tmp1 = vaddq_u32(msg1, vld1q_u32(kptr));
+        kptr += 4;
         state0 = vsha256hq_u32(state0, state1, tmp0);
         state1 = vsha256h2q_u32(state1, tmp2, tmp0);
 
         tmp2 = state0;
-        tmp0 = vaddq_u32(msg2, vld1q_u32(&k256[0x38]));
+        tmp0 = vaddq_u32(msg2, vld1q_u32(kptr));
+        kptr += 4;
         state0 = vsha256hq_u32(state0, state1, tmp1);
         state1 = vsha256h2q_u32(state1, tmp2, tmp1);
 
         tmp2 = state0;
-        tmp1 = vaddq_u32(msg3, vld1q_u32(&k256[0x3c]));
+        tmp1 = vaddq_u32(msg3, vld1q_u32(kptr));
+        kptr += 4;
         state0 = vsha256hq_u32(state0, state1, tmp0);
         state1 = vsha256h2q_u32(state1, tmp2, tmp0);
 
@@ -205,17 +231,14 @@ static void test_sha256_implementation(void)
         0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19};
 
     uint8_t block[64] = {0};
+    uint8_t digest_be[32];
     memcpy(block, "abc", 3);
     block[3] = 0x80;
     block[62] = 0;
     block[63] = 24;
 
     sha256_arm_crypto(digest, block, 1);
-
-    for (int i = 0; i < 8; i++)
-    {
-        digest[i] = __builtin_bswap32(digest[i]);
-    }
+    store_state_be(digest_be, digest);
 
     uint8_t generic_hash[32];
     sha256((uint8_t *)"abc", 3, generic_hash);
@@ -233,16 +256,16 @@ static void test_sha256_implementation(void)
            generic_hash[28], generic_hash[29], generic_hash[30], generic_hash[31]);
 
     applog(LOG_WARNING, "ARM Crypto:    %02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x",
-           ((uint8_t *)digest)[0], ((uint8_t *)digest)[1], ((uint8_t *)digest)[2], ((uint8_t *)digest)[3],
-           ((uint8_t *)digest)[4], ((uint8_t *)digest)[5], ((uint8_t *)digest)[6], ((uint8_t *)digest)[7],
-           ((uint8_t *)digest)[8], ((uint8_t *)digest)[9], ((uint8_t *)digest)[10], ((uint8_t *)digest)[11],
-           ((uint8_t *)digest)[12], ((uint8_t *)digest)[13], ((uint8_t *)digest)[14], ((uint8_t *)digest)[15],
-           ((uint8_t *)digest)[16], ((uint8_t *)digest)[17], ((uint8_t *)digest)[18], ((uint8_t *)digest)[19],
-           ((uint8_t *)digest)[20], ((uint8_t *)digest)[21], ((uint8_t *)digest)[22], ((uint8_t *)digest)[23],
-           ((uint8_t *)digest)[24], ((uint8_t *)digest)[25], ((uint8_t *)digest)[26], ((uint8_t *)digest)[27],
-           ((uint8_t *)digest)[28], ((uint8_t *)digest)[29], ((uint8_t *)digest)[30], ((uint8_t *)digest)[31]);
+           digest_be[0], digest_be[1], digest_be[2], digest_be[3],
+           digest_be[4], digest_be[5], digest_be[6], digest_be[7],
+           digest_be[8], digest_be[9], digest_be[10], digest_be[11],
+           digest_be[12], digest_be[13], digest_be[14], digest_be[15],
+           digest_be[16], digest_be[17], digest_be[18], digest_be[19],
+           digest_be[20], digest_be[21], digest_be[22], digest_be[23],
+           digest_be[24], digest_be[25], digest_be[26], digest_be[27],
+           digest_be[28], digest_be[29], digest_be[30], digest_be[31]);
 
-    if (memcmp(generic_hash, digest, 32) == 0)
+    if (memcmp(generic_hash, digest_be, 32) == 0)
     {
         applog(LOG_WARNING, "✓ SHA256 test vector matches!");
     }
@@ -277,10 +300,7 @@ static void sha256_double_arm_crypto_full(uint8_t hash[32], const uint8_t data[8
     sha256_arm_crypto(state, block, 1);
 
     uint8_t hash1[32] __attribute__((aligned(16)));
-    for (int i = 0; i < 8; i++)
-    {
-        ((uint32_t *)hash1)[i] = __builtin_bswap32(state[i]);
-    }
+    store_state_be(hash1, state);
 
     memcpy(state, sha256_init_state, 32);
 
@@ -292,12 +312,7 @@ static void sha256_double_arm_crypto_full(uint8_t hash[32], const uint8_t data[8
 
     sha256_arm_crypto(state, block, 1);
 
-    for (int i = 0; i < 8; i++)
-    {
-        state[i] = __builtin_bswap32(state[i]);
-    }
-
-    memcpy(hash, state, 32);
+    store_state_be(hash, state);
 }
 
 TARGET_ARM_CRYPTO
@@ -320,10 +335,7 @@ static void sha256_double_arm_crypto_swapped(uint8_t hash[32], const uint8_t dat
     sha256_arm_crypto(state, block, 1);
 
     uint8_t hash1[32] __attribute__((aligned(16)));
-    for (int i = 0; i < 8; i++)
-    {
-        ((uint32_t *)hash1)[i] = __builtin_bswap32(state[i]);
-    }
+    store_state_be(hash1, state);
 
     memcpy(state, sha256_init_state, 32);
 
@@ -335,12 +347,7 @@ static void sha256_double_arm_crypto_swapped(uint8_t hash[32], const uint8_t dat
 
     sha256_arm_crypto(state, block, 1);
 
-    for (int i = 0; i < 8; i++)
-    {
-        state[i] = __builtin_bswap32(state[i]);
-    }
-
-    memcpy(hash, state, 32);
+    store_state_be(hash, state);
 }
 
 TARGET_ARM_CRYPTO
@@ -360,10 +367,7 @@ static void sha256_double_arm_crypto_midstate(uint8_t hash[32], const uint8_t mi
     sha256_arm_crypto(state, block, 1);
 
     uint8_t hash1[32] __attribute__((aligned(16)));
-    for (int i = 0; i < 8; i++)
-    {
-        ((uint32_t *)hash1)[i] = __builtin_bswap32(state[i]);
-    }
+    store_state_be(hash1, state);
 
     memcpy(state, sha256_init_state, 32);
 
@@ -375,12 +379,7 @@ static void sha256_double_arm_crypto_midstate(uint8_t hash[32], const uint8_t mi
 
     sha256_arm_crypto(state, block, 1);
 
-    for (int i = 0; i < 8; i++)
-    {
-        state[i] = __builtin_bswap32(state[i]);
-    }
-
-    memcpy(hash, state, 32);
+    store_state_be(hash, state);
 }
 
 TARGET_ARM_CRYPTO
