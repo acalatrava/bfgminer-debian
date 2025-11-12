@@ -309,6 +309,89 @@ static void sha256_double_shani_full(uint8_t hash[32], const uint8_t data[80])
 }
 
 TARGET_SHANI
+static void sha256_double_shani_swapped(uint8_t hash[32], const uint8_t data_swapped[80])
+{
+    uint32_t state[8] __attribute__((aligned(16)));
+    uint8_t block[64] __attribute__((aligned(16)));
+
+    memcpy(state, sha256_init_state, 32);
+
+    memcpy(block, data_swapped, 64);
+    sha256_ni(state, block, 1);
+
+    memcpy(block, data_swapped + 64, 16);
+    memset(block + 16, 0, 48);
+    block[16] = 0x80;
+    block[62] = 0x02;
+    block[63] = 0x80;
+
+    sha256_ni(state, block, 1);
+
+    uint8_t hash1[32] __attribute__((aligned(16)));
+    for (int i = 0; i < 8; i++)
+    {
+        ((uint32_t *)hash1)[i] = __builtin_bswap32(state[i]);
+    }
+
+    memcpy(state, sha256_init_state, 32);
+
+    memcpy(block, hash1, 32);
+    memset(block + 32, 0, 32);
+    block[32] = 0x80;
+    block[62] = 0x01;
+    block[63] = 0x00;
+
+    sha256_ni(state, block, 1);
+
+    for (int i = 0; i < 8; i++)
+    {
+        state[i] = __builtin_bswap32(state[i]);
+    }
+
+    memcpy(hash, state, 32);
+}
+
+TARGET_SHANI
+static void sha256_double_shani_midstate(uint8_t hash[32], const uint8_t midstate[32], const uint8_t data_tail[16])
+{
+    uint32_t state[8] __attribute__((aligned(16)));
+    uint8_t block[64] __attribute__((aligned(16)));
+
+    memcpy(state, midstate, 32);
+
+    memcpy(block, data_tail, 16);
+    memset(block + 16, 0, 48);
+    block[16] = 0x80;
+    block[62] = 0x02;
+    block[63] = 0x80;
+
+    sha256_ni(state, block, 1);
+
+    uint8_t hash1[32] __attribute__((aligned(16)));
+    for (int i = 0; i < 8; i++)
+    {
+        ((uint32_t *)hash1)[i] = __builtin_bswap32(state[i]);
+    }
+
+    memcpy(state, sha256_init_state, 32);
+
+    memcpy(block, hash1, 32);
+    memset(block + 32, 0, 32);
+    block[32] = 0x80;
+    block[62] = 0x01;
+    block[63] = 0x00;
+
+    sha256_ni(state, block, 1);
+
+    for (int i = 0; i < 8; i++)
+    {
+        state[i] = __builtin_bswap32(state[i]);
+    }
+
+    memcpy(hash, state, 32);
+}
+
+TARGET_SHANI
 bool scanhash_shani(struct thr_info *const thr, struct work *const work,
                     uint32_t max_nonce, uint32_t *last_nonce, uint32_t n)
 {
@@ -320,11 +403,16 @@ bool scanhash_shani(struct thr_info *const thr, struct work *const work,
     const uint32_t hash7_targ = le32toh(((const uint32_t *)target)[7]);
     uint32_t *const hash7_tmp = &((uint32_t *)hash)[7];
 
+    uint8_t data_tail_swapped[16] __attribute__((aligned(16)));
+    swap32yes(data_tail_swapped, data + 64, 4);
+    uint32_t *nonce_swapped = (uint32_t *)&data_tail_swapped[12];
+
     while (true)
     {
         *out_nonce = n;
+        *nonce_swapped = htobe32(n);
 
-        sha256_double_shani_full(hash, data);
+        sha256_double_shani_midstate(hash, work->midstate, data_tail_swapped);
 
         if (unlikely(le32toh(*hash7_tmp) <= hash7_targ))
         {
