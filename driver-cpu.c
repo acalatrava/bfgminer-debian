@@ -884,8 +884,7 @@ CPUSearch:
 #endif
 #ifdef USE_SHA256D
 		case POW_SHA256D:
-			if (work->nonce_diff >= 1.)
-				func = sha256_funcs[opt_algo];
+			func = sha256_funcs[opt_algo];
 			break;
 #endif
 		default:
